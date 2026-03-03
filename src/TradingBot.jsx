@@ -66,7 +66,7 @@ const calcADX = (candles, p = 14) => {
 // ═══════════════════════════════════════
 //  CANDLE GENERATOR
 // ═══════════════════════════════════════
-const genCandles = (n = 120, base = 2652) => {
+const genCandles = (n = 120, base = 5090) => {
   let p = base, trend = 0;
   return Array.from({ length: n }, (_, i) => {
     trend = trend * 0.92 + (Math.random() - 0.5) * 0.2;
@@ -206,7 +206,7 @@ export default function XAUUSDBot() {
       // New price tick
       const vol = 0.0013;
       const drift = Math.sin(Date.now() / 22000) * 0.0003;
-      const newP = Math.max(2420, lastC + lastC * (drift + (Math.random() - 0.5) * vol * 2));
+      const newP = Math.max(4800, lastC + lastC * (drift + (Math.random() - 0.5) * vol * 2));
       const dir = newP > lastC ? 1 : -1;
       setPrice(newP);
       setPriceDir(dir);
