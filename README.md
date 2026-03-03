@@ -68,3 +68,33 @@ This section has moved here: [https://facebook.github.io/create-react-app/docs/d
 ### `npm run build` fails to minify
 
 This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+
+---
+
+## Desktop Packaging (Electron)
+
+This repository includes an Electron wrapper so the trading bot can run as a desktop application.
+
+**Development**
+
+```bash
+cd app
+npm install
+npm run electron:dev
+```
+
+`electron:dev` launches the React dev server and opens an Electron window pointing to `localhost:3000`.
+
+**Production Build & Package**
+
+```bash
+cd app
+npm run electron:build
+```
+
+The command builds the React app and then uses `electron-builder` to create a distributable installer for your platform.
+
+Configuration is located in the `build` section of `package.json` (`appId`, `productName`, etc.).
+
+You can customize icons by placing them under `app/assets` and adjusting `buildResources`.
+
