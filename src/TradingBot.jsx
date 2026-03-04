@@ -349,7 +349,7 @@ const [priceSource, setPriceSource] = useState("simulation");
       const lastC = st.candles[st.candles.length - 1];
       const lastP = lastC.c;
 
-// Only simulate price if not on live feed
+// Only simulate price when explicitly in simulation mode
 if (priceSource === "simulation") {
   const rev = (REAL_BASE - lastP) * 0.002;
   const change = rev + (Math.random() - 0.5) * lastP * 0.0009;
@@ -362,9 +362,9 @@ if (priceSource === "simulation") {
   setPriceDir(newP > lastP ? 1 : -1);
   setPrice(newP);
 }
-      const newTick = st.tick + 1;
-      setTick(newTick);
 
+const newTick = st.tick + 1;
+setTick(newTick);
       // Update candles
       const curP = st.price;
       let newCandles;
