@@ -105,12 +105,11 @@ export default function XAUUSDBot() {
   const initCandles = useMemo(() => genCandles(), []);
 
   // ─── PRICE STATE ───
-  const [candles, setCandles]     = useState(initCandles);
-  const [price, setPrice]         = useState(REAL_BASE);
-  const [prevPrice, setPrevPrice] = useState(REAL_BASE);
-  const [priceDir, setPriceDir]   = useState(0);
-  const [priceSource, setPriceSource] = useState("simulation");
-
+const [candles, setCandles]     = useState(initCandles);
+const [price, setPrice]         = useState(REAL_BASE);
+const [, setPrevPrice]          = useState(REAL_BASE);
+const [priceDir, setPriceDir]   = useState(0);
+const [priceSource, setPriceSource] = useState("simulation");
   // ─── BOT STATE ───
   const [equity, setEquity]       = useState(100);
   const [peakEq, setPeakEq]       = useState(100);
