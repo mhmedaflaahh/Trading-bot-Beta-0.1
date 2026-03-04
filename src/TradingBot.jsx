@@ -580,11 +580,41 @@ export default function XAUUSDBot() {
                   onChange={e => setBrokerLogin(p => ({ ...p, server: e.target.value }))}
                   style={{ width: "100%", background: C.panel2, border: "1px solid " + C.border, borderRadius: 5, padding: "8px 12px", color: C.text, fontSize: 13 }}
                 >
-                  <option value="Exness-MT5Trial">Exness-MT5Trial (Demo)</option>
-                  <option value="Exness-MT5Real">Exness-MT5Real (Live)</option>
-                  <option value="Exness-MT5Real2">Exness-MT5Real2</option>
-                  <option value="Exness-MT5Real3">Exness-MT5Real3</option>
-                </select>
+<option value="Exness-MT5Trial">Exness-MT5Trial</option>
+<option value="Exness-MT5Trial2">Exness-MT5Trial2</option>
+<option value="Exness-MT5Trial3">Exness-MT5Trial3</option>
+<option value="Exness-MT5Trial4">Exness-MT5Trial4</option>
+<option value="Exness-MT5Trial5">Exness-MT5Trial5</option>
+<option value="Exness-MT5Trial6">Exness-MT5Trial6</option>
+<option value="Exness-MT5Trial7">Exness-MT5Trial7</option>
+<option value="Exness-MT5Trial8">Exness-MT5Trial8</option>
+<option value="Exness-MT5Trial9">Exness-MT5Trial9</option>
+<option value="Exness-MT5Trial10">Exness-MT5Trial10</option>
+<option value="Exness-MT5Trial11">Exness-MT5Trial11</option>
+<option value="Exness-MT5Trial12">Exness-MT5Trial12</option>
+<option value="Exness-MT5Trial13">Exness-MT5Trial13</option>
+<option value="Exness-MT5Trial14">Exness-MT5Trial14</option>
+<option value="Exness-MT5Trial15">Exness-MT5Trial15</option>
+<option value="Exness-MT5Trial16">Exness-MT5Trial16</option>
+<option value="Exness-MT5Trial17">Exness-MT5Trial17 ← YOURS</option>
+<option value="Exness-MT5Trial18">Exness-MT5Trial18</option>
+<option value="Exness-MT5Trial19">Exness-MT5Trial19</option>
+<option value="Exness-MT5Trial20">Exness-MT5Trial20</option>
+<option value="Exness-MT5Real">Exness-MT5Real (Live)</option>
+<option value="Exness-MT5Real2">Exness-MT5Real2</option>
+<option value="Exness-MT5Real3">Exness-MT5Real3</option>
+<option value="Exness-MT5Real4">Exness-MT5Real4</option>
+<option value="Exness-MT5Real5">Exness-MT5Real5</option>
+<option value="Exness-MT5Real6">Exness-MT5Real6</option>
+<option value="Exness-MT5Real7">Exness-MT5Real7</option>
+<option value="Exness-MT5Real8">Exness-MT5Real8</option>
+```
+
+Then save and push:
+```
+git add .
+git commit -m "add all Exness servers"
+git push origin main --force                </select>
               </div>
               <button
                 onClick={() => connectBridge(brokerLogin.login, brokerLogin.password, brokerLogin.server)}
