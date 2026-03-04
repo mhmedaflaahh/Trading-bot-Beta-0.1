@@ -122,7 +122,7 @@ const C = {
 // ═══════════════════════════════════════
 export default function XAUUSDBot() {
   // ─── REAL BASE PRICE (from broker or default) ───
-  const [realBase, setRealBase]   = useState(5160);
+  const [realBase]                = useState(5160);
   const initCandles = useMemo(() => genCandles(realBase), [realBase]);
 
   // ─── PRICE ───
@@ -146,15 +146,8 @@ export default function XAUUSDBot() {
   const [tick, setTick]             = useState(0);
   const [stats, setStats]           = useState({ wins: 0, losses: 0, totalPnL: 0 });
   const [settings, setSettings]     = useState({ risk: 2, maxDD: 15, trend: true, meanRev: true, bridgeUrl: "ws://localhost:8000/ws", preset: "balanced" });
-  const PRESETS = {
-    conservative: { risk: 0.5, maxDD: 8,  trend: true,  meanRev: false, label: "Conservative", icon: "♟", color: "#60A5FA", sub: "0.5% risk · Trend only · Low DD" },
-    balanced:     { risk: 2,   maxDD: 15, trend: true,  meanRev: true,  label: "Balanced",     icon: "♞", color: "#D4AF37", sub: "2% risk · Dual strategy" },
-    optimal:      { risk: 3,   maxDD: 20, trend: true,  meanRev: true,  label: "Optimal",      icon: "♝", color: "#A78BFA", sub: "3% risk · Full strategy" },
-    aggressive:   { risk: 5,   maxDD: 30, trend: true,  meanRev: true,  label: "Aggressive",   icon: "♛", color: "#FF4050", sub: "5% risk · Max exposure" },
-  };
   const [circuitBreaker, setCircuitBreaker] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // ─── BROKER ───
   const [brokerLogin, setBrokerLogin] = useState({ login: "", password: "", server: "Exness-MT5Trial6" });
