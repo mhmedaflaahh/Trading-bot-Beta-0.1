@@ -125,6 +125,10 @@ const C = {
 //  MAIN COMPONENT
 // ═══════════════════════════════════════
 export default function XAUUSDBot() {
+  // ─── NEWS ───
+  const [news, setNews] = useState([]);
+  const [newsLoading, setNewsLoading] = useState(false);
+
   // ─── REAL BASE PRICE (from broker or default) ───
   const [realBase]                = useState(5160);
   const initCandles = useMemo(() => genCandles(realBase), [realBase]);
@@ -176,7 +180,7 @@ export default function XAUUSDBot() {
 
   // ─── LOGS ───
   const [logs, setLogs] = useState([
-    { id: 1, time: new Date().toLocaleTimeString(), msg: "XAUBot v5.0 ready. Connect broker or run simulation.", type: "info" }
+    { id: 1, time: new Date().toLocaleTimeString(), msg: "XAUBot v7.0 ready. Connect broker or run simulation.", type: "info" }
   ]);
 
   const ref      = useRef({});
@@ -188,7 +192,7 @@ export default function XAUUSDBot() {
   const pingStart = useRef(null);
 
   useEffect(() => {
-    ref.current = { candles, equity, peakEq, openTrades, closedTrades, stats, tick, eqHistory, settings, price, circuitBreaker, initialBalance, soundEnabled };
+    ref.current = { candles, equity, peakEq, openTrades, closedTrades, stats, tick, eqHistory, settings, price, circuitBreaker, initialBalance, soundEnabled, brokerConnected };
   });
 
   const playSound = useCallback((name) => {
@@ -277,6 +281,35 @@ export default function XAUUSDBot() {
   useEffect(() => { return connectFinnhub(); }, [connectFinnhub]);
 
   // ═══════════════════════════════════════
+  //  LIVE NEWS (Finnhub general market news)
+  // ═══════════════════════════════════════
+  const fetchNews = useCallback(async () => {
+    setNewsLoading(true);
+    try {
+      const res = await fetch(`https://finnhub.io/api/v1/news?category=general&token=${FINNHUB_KEY}`);
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setNews(data.slice(0, 8).map(n => ({
+          id: n.id,
+          headline: n.headline,
+          source: n.source,
+          url: n.url,
+          time: new Date(n.datetime * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          sentiment: n.headline?.toLowerCase().match(/fall|drop|slump|fear|crash|weak|decline/) ? "bear"
+            : n.headline?.toLowerCase().match(/rise|surge|rally|strong|high|gain|bull/) ? "bull" : "neutral",
+        })));
+      }
+    } catch { /* silent fail */ }
+    setNewsLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchNews();
+    const iv = setInterval(fetchNews, 5 * 60 * 1000); // refresh every 5 min
+    return () => clearInterval(iv);
+  }, [fetchNews]);
+
+  // ═══════════════════════════════════════
   //  BRIDGE PING
   // ═══════════════════════════════════════
   const startPing = useCallback(() => {
@@ -295,6 +328,14 @@ export default function XAUUSDBot() {
   const connectBridge = useCallback((login, password, server, isReconnect = false) => {
     if (!isReconnect) setBrokerConnecting(true);
     const url = ref.current.settings.bridgeUrl || "ws://localhost:8000/ws";
+    // ── Timeout: reset if no connection after 12s ──
+    const connectTimeout = setTimeout(() => {
+      if (!ref.current.brokerConnected) {
+        setBrokerConnecting(false);
+        addLog("❌ Connection timed out — check bridge is running and VPS URL is correct", "loss");
+        addAlert("❌ Connection timed out", "danger");
+      }
+    }, 12000);
     try {
       if (wsRef.current) wsRef.current.close();
       const ws = new WebSocket(url);
@@ -336,6 +377,7 @@ export default function XAUUSDBot() {
             setBrokerAccount(fixedAccount);
             setBrokerConnected(true);
             setBrokerConnecting(false);
+            clearTimeout(connectTimeout);
             setReconnectCount(0);
             if (!isReconnect) {
               playSound("connect");
@@ -395,6 +437,7 @@ export default function XAUUSDBot() {
       };
 
       ws.onerror = () => {
+        clearTimeout(connectTimeout);
         if (!isReconnect) {
           setBrokerConnecting(false);
           addLog("❌ Bridge not running. Start bridge_windows.py on your VPS first.", "loss");
@@ -402,6 +445,7 @@ export default function XAUUSDBot() {
         }
       };
     } catch (err) {
+      clearTimeout(connectTimeout);
       setBrokerConnecting(false);
       addLog(`❌ Connection error: ${err.message}`, "loss");
     }
@@ -463,23 +507,41 @@ export default function XAUUSDBot() {
     const { ema20, ema50, prevEma20, prevEma50, rsi, bb, atr, adx } = indicators;
     const px      = cands[cands.length - 1].c;
     const riskAmt = eq * (setts.risk / 100);
-    const stopDist = atr * 1.5;
     const regime  = adx > 25 ? "TRENDING" : adx < 18 ? "RANGING" : "NEUTRAL";
+    const isAggressive = setts.risk >= 4;
+    // Aggressive: wider stops, 3:1 R:R, swing targets
+    const stopMult = isAggressive ? 2.5 : 1.5;
+    const tpMult   = isAggressive ? 3.0 : 2.0;
+    const stopDist = atr * stopMult;
     if (openT.length >= 2) return { regime, signal: null };
     const hasLong  = openT.some(t => t.dir === "long");
     const hasShort = openT.some(t => t.dir === "short");
     let signal = null, strat = "", sl = 0, tp = 0;
+    // ── Trend Strategy (EMA Cross) ──
     if (setts.trend && regime !== "RANGING") {
       const bullCross = prevEma20 <= prevEma50 && ema20 > ema50;
       const bearCross = prevEma20 >= prevEma50 && ema20 < ema50;
-      if (bullCross && rsi > 50 && !hasLong)  { signal = "BUY";  strat = "EMA Cross ↗"; sl = px - stopDist; tp = px + stopDist * 2; }
-      if (bearCross && rsi < 50 && !hasShort) { signal = "SELL"; strat = "EMA Cross ↘"; sl = px + stopDist; tp = px - stopDist * 2; }
+      const rsiOk = isAggressive ? true : true; // aggressive allows any RSI
+      const rsiBull = isAggressive ? rsi > 45 : rsi > 50;
+      const rsiBear = isAggressive ? rsi < 55 : rsi < 50;
+      if (bullCross && rsiBull && !hasLong)  { signal = "BUY";  strat = isAggressive ? "Swing Long ↗" : "EMA Cross ↗"; sl = px - stopDist; tp = px + stopDist * tpMult; }
+      if (bearCross && rsiBear && !hasShort) { signal = "SELL"; strat = isAggressive ? "Swing Short ↘" : "EMA Cross ↘"; sl = px + stopDist; tp = px - stopDist * tpMult; }
     }
+    // ── Mean Reversion (BB) ──
     if (!signal && setts.meanRev && regime !== "TRENDING") {
       const lastC = cands[cands.length - 1];
       const bullC = lastC.c > lastC.o, bearC = lastC.c < lastC.o;
-      if (px >= bb.u && rsi > 68 && bearC && !hasShort) { signal = "SELL"; strat = "BB Reversion ↘"; sl = px + atr; tp = bb.mid; }
-      if (px <= bb.l && rsi < 32 && bullC && !hasLong)  { signal = "BUY";  strat = "BB Reversion ↗"; sl = px - atr; tp = bb.mid; }
+      const bbRsiHigh = isAggressive ? 65 : 68;
+      const bbRsiLow  = isAggressive ? 35 : 32;
+      if (px >= bb.u && rsi > bbRsiHigh && bearC && !hasShort) { signal = "SELL"; strat = "BB Reversion ↘"; sl = px + atr * stopMult; tp = isAggressive ? px - (bb.u - bb.l) : bb.mid; }
+      if (px <= bb.l && rsi < bbRsiLow  && bullC && !hasLong)  { signal = "BUY";  strat = "BB Reversion ↗"; sl = px - atr * stopMult; tp = isAggressive ? px + (bb.u - bb.l) : bb.mid; }
+    }
+    // ── Aggressive Momentum (new) — enters on strong trend continuation ──
+    if (!signal && isAggressive && regime === "TRENDING") {
+      const strongBull = ema20 > ema50 && rsi > 55 && rsi < 75 && px > ema20 && !hasLong;
+      const strongBear = ema20 < ema50 && rsi < 45 && rsi > 25 && px < ema20 && !hasShort;
+      if (strongBull) { signal = "BUY";  strat = "Momentum Ride ↗"; sl = px - stopDist; tp = px + stopDist * tpMult; }
+      if (strongBear) { signal = "SELL"; strat = "Momentum Ride ↘"; sl = px + stopDist; tp = px - stopDist * tpMult; }
     }
     return { regime, signal, strat, sl, tp, riskAmt };
   }, []);
@@ -653,7 +715,7 @@ export default function XAUUSDBot() {
           <div className={running ? "pulse" : ""} style={{ width: 8, height: 8, borderRadius: "50%", background: running ? C.green : C.dim, flexShrink: 0 }} />
           <span style={{ ...mono, color: C.gold, fontSize: 18, fontWeight: 700 }}>XAU/USD</span>
           <div style={{ padding: "2px 7px", background: C.gold + "15", border: `1px solid ${C.gold}30`, borderRadius: 4 }}>
-            <span style={{ ...mono, fontSize: 9, color: C.gold }}>AUTO TRADER v6.0 · MT5</span>
+            <span style={{ ...mono, fontSize: 9, color: C.gold }}>AUTO TRADER v7.0 · MT5</span>
           </div>
           {/* Price source */}
           <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "2px 8px", background: srcColor + "12", border: `1px solid ${srcColor}30`, borderRadius: 4 }}>
@@ -1049,6 +1111,46 @@ export default function XAUUSDBot() {
         </div>
       )}
 
+      {/* ══ NEWS ══ */}
+      {tab === "overview" && (
+        <div style={panel({ marginTop: 0 })}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 11 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <Zap size={12} color={C.amber} />
+              <span style={{ fontSize: 10, color: C.amber, letterSpacing: ".1em", fontWeight: 700 }}>LIVE MARKET NEWS</span>
+              {newsLoading && <span style={{ fontSize: 9, color: C.dim }}>Loading...</span>}
+            </div>
+            <button onClick={fetchNews} style={{ background: "none", border: `1px solid ${C.border}`, borderRadius: 4, padding: "2px 8px", color: C.dim, cursor: "pointer", fontSize: 9, display: "flex", alignItems: "center", gap: 4 }}>
+              <RefreshCw size={9} /> Refresh
+            </button>
+          </div>
+          {news.length === 0 && !newsLoading && (
+            <div style={{ color: C.dim, fontSize: 11, textAlign: "center", padding: "14px 0" }}>
+              No news yet — using demo API key. Add your Finnhub key for live news.
+            </div>
+          )}
+          {news.map(n => (
+            <a key={n.id} href={n.url} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
+              <div style={{ display: "flex", gap: 10, padding: "8px 0", borderBottom: `1px solid ${C.border}18`, cursor: "pointer" }}
+                onMouseEnter={e => e.currentTarget.style.background = C.panel2}
+                onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                <div style={{ width: 4, borderRadius: 2, background: n.sentiment === "bull" ? C.green : n.sentiment === "bear" ? C.red : C.dim, flexShrink: 0 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 11, color: C.text, lineHeight: 1.4, marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{n.headline}</div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <span style={{ fontSize: 9, color: C.dim }}>{n.source}</span>
+                    <span style={{ fontSize: 9, color: C.dimmer }}>· {n.time}</span>
+                    <span style={{ fontSize: 9, fontWeight: 700, color: n.sentiment === "bull" ? C.green : n.sentiment === "bear" ? C.red : C.dim }}>
+                      {n.sentiment === "bull" ? "↑ BULLISH" : n.sentiment === "bear" ? "↓ BEARISH" : "◆ NEUTRAL"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </a>
+          ))}
+        </div>
+      )}
+
       {/* ══ TRADES ══ */}
       {tab === "trades" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
@@ -1415,7 +1517,7 @@ export default function XAUUSDBot() {
 
       {/* FOOTER */}
       <div style={{ marginTop: 10, paddingTop: 8, borderTop: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", fontSize: 9, color: C.dimmer, flexWrap: "wrap", gap: 4 }}>
-        <span>XAUUSDm · EXNESS MT5 · v6.0 · Educational use · Not financial advice</span>
+        <span>XAUUSDm · EXNESS MT5 · v7.0 · Educational use · Not financial advice</span>
         <span style={mono}>{running ? <span style={{ color: C.green }}>● LIVE</span> : "○ IDLE"} · ${price.toFixed(2)} · {srcLabel} · {regime}</span>
       </div>
     </div>
