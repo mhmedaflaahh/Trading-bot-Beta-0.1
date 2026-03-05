@@ -521,7 +521,6 @@ export default function XAUUSDBot() {
     if (setts.trend && regime !== "RANGING") {
       const bullCross = prevEma20 <= prevEma50 && ema20 > ema50;
       const bearCross = prevEma20 >= prevEma50 && ema20 < ema50;
-      const rsiOk = isAggressive ? true : true; // aggressive allows any RSI
       const rsiBull = isAggressive ? rsi > 45 : rsi > 50;
       const rsiBear = isAggressive ? rsi < 55 : rsi < 50;
       if (bullCross && rsiBull && !hasLong)  { signal = "BUY";  strat = isAggressive ? "Swing Long ↗" : "EMA Cross ↗"; sl = px - stopDist; tp = px + stopDist * tpMult; }
