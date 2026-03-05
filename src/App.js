@@ -1,12 +1,5 @@
-import './App.css';
-import TradingBot from './TradingBot';
-
+import XAUUSDBot from "./TradingBot";
 function App() {
-  return (
-    <div className="App">
-      <TradingBot />
-    </div>
-  );
+  return <XAUUSDBot />;
 }
-
 export default App;
