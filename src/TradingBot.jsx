@@ -21,7 +21,7 @@ const FINNHUB_KEY = "demo"; // replace with your finnhub.io key
 
 // Supabase Edge Function (paste your anon key from Supabase → Settings → API → anon public)
 const SUPABASE_FUNC_URL = "https://jldfajiptsxpjyckpgjd.functions.supabase.co/mt5-bridge";
-const SUPABASE_ANON_KEY = ""; // paste your anon public key here (eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpsZGZhamlwdHN4cGp5Y2twZ2pkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2NTIzODcsImV4cCI6MjA4ODIyODM4N30.O73qAq6RiK21XGK6A0vsGfeqnPlfNHXPZpEUAhQnO8c)
+const SUPABASE_ANON_KEY = ""; // paste your anon public key here (long eyJ... string)
 
 // ═══════════════════════════════════════
 //  MATH ENGINE
